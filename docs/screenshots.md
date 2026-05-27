@@ -1,4 +1,3 @@
-cat > docs/screenshots.md <<'EOF'
 # Guia de prints do laboratório
 
 Este arquivo não armazena os prints do laboratório.
@@ -99,3 +98,6 @@ Se quiser publicar evidências adicionais no GitHub no futuro, crie uma pasta se
 
 ```text
 evidence/screenshots/
+```
+
+Nesse caso, publique apenas imagens revisadas e sem dados sensíveis.

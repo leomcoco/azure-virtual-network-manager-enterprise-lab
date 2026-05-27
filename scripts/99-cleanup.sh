@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Evita que o Git Bash no Windows converta resource IDs do Azure.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 RESOURCE_GROUP_NAME="rg-avnm-lab"
 
 POLICY_DEFINITION_NAME="avnm-add-lab-spokes-to-network-group"

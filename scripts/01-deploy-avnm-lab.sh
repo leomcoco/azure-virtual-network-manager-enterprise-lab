@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# Evita que o Git Bash no Windows converta resource IDs do Azure
+# Evita que o Git Bash no Windows converta resource IDs do Azure.
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL="*"
 
@@ -16,6 +16,8 @@ CONNECTIVITY_CONFIG_NAME="cc-hub-spoke-lab"
 VNET_HUB_NAME="vnet-hub-shared-001"
 VNET_SPOKE_APP_NAME="vnet-spoke-app-001"
 VNET_SPOKE_DATA_NAME="vnet-spoke-data-001"
+
+API_VERSION="2024-10-01"
 
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
@@ -61,7 +63,7 @@ az network vnet create \
     costCenter=mct-lab \
     managedBy=azure-cli \
     article=azure-virtual-network-manager \
-  --output table
+  --output none
 
 echo
 echo "==> Criando VNet Spoke App"
@@ -81,7 +83,7 @@ az network vnet create \
     costCenter=mct-lab \
     managedBy=azure-cli \
     article=azure-virtual-network-manager \
-  --output table
+  --output none
 
 echo
 echo "==> Criando VNet Spoke Data"
@@ -101,7 +103,7 @@ az network vnet create \
     costCenter=mct-lab \
     managedBy=azure-cli \
     article=azure-virtual-network-manager \
-  --output table
+  --output none
 
 echo
 echo "==> Criando Azure Virtual Network Manager"
@@ -160,24 +162,41 @@ az network manager group static-member create \
   --output table
 
 echo
-echo "==> Criando Connectivity Configuration Hub-Spoke"
+echo "==> Criando Connectivity Configuration Hub-Spoke via ARM REST"
 
-az network manager connect-config create \
-  --configuration-name "$CONNECTIVITY_CONFIG_NAME" \
-  --description "Hub-spoke connectivity configuration for AVNM lab" \
-  --applies-to-groups \
-    network-group-id="$NETWORK_GROUP_ID" \
-    group-connectivity="None" \
-    use-hub-gateway="False" \
-    is-global="False" \
-  --connectivity-topology "HubAndSpoke" \
-  --delete-existing-peering "False" \
-  --hub \
-    resource-id="$VNET_HUB_ID" \
-    resource-type="Microsoft.Network/virtualNetworks" \
-  --is-global "False" \
-  --network-manager-name "$NETWORK_MANAGER_NAME" \
-  --resource-group "$RESOURCE_GROUP_NAME" \
+CONNECTIVITY_CONFIG_URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/connectivityConfigurations/$CONNECTIVITY_CONFIG_NAME?api-version=$API_VERSION"
+
+CONNECTIVITY_CONFIG_BODY=$(cat <<JSON
+{
+  "properties": {
+    "description": "Hub-spoke connectivity configuration for AVNM lab",
+    "connectivityTopology": "HubAndSpoke",
+    "deleteExistingPeering": "False",
+    "isGlobal": "False",
+    "appliesToGroups": [
+      {
+        "networkGroupId": "$NETWORK_GROUP_ID",
+        "groupConnectivity": "None",
+        "isGlobal": "False",
+        "useHubGateway": "False"
+      }
+    ],
+    "hubs": [
+      {
+        "resourceId": "$VNET_HUB_ID",
+        "resourceType": "Microsoft.Network/virtualNetworks"
+      }
+    ]
+  }
+}
+JSON
+)
+
+az rest \
+  --method put \
+  --uri "$CONNECTIVITY_CONFIG_URI" \
+  --headers "Content-Type=application/json" \
+  --body "$CONNECTIVITY_CONFIG_BODY" \
   --output table
 
 CONNECTIVITY_CONFIG_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/connectivityConfigurations/$CONNECTIVITY_CONFIG_NAME"

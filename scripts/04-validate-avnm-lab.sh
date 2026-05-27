@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Evita que o Git Bash no Windows converta resource IDs do Azure.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 RESOURCE_GROUP_NAME="rg-avnm-lab"
 
 NETWORK_MANAGER_NAME="avnm-lab-001"
@@ -10,6 +14,7 @@ NETWORK_GROUP_NAME="ng-spokes-lab"
 VNET_SPOKE_APP_NAME="vnet-spoke-app-001"
 VNET_SPOKE_DATA_NAME="vnet-spoke-data-001"
 
+CONNECTIVITY_CONFIG_NAME="cc-hub-spoke-lab"
 SECURITY_CONFIG_NAME="sac-baseline-lab"
 RULE_COLLECTION_NAME="arc-spokes-baseline"
 
@@ -54,6 +59,15 @@ az network manager group static-member list \
   --resource-group "$RESOURCE_GROUP_NAME" \
   --network-manager "$NETWORK_MANAGER_NAME" \
   --network-group "$NETWORK_GROUP_NAME" \
+  --output table
+
+echo
+echo "==> Validando Connectivity Configuration"
+
+az network manager connect-config show \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --network-manager-name "$NETWORK_MANAGER_NAME" \
+  --configuration-name "$CONNECTIVITY_CONFIG_NAME" \
   --output table
 
 echo

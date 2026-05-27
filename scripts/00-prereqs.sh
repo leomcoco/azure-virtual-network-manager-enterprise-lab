@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Evita conversão automática de resource IDs no Git Bash do Windows.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 echo "==> Validando Azure CLI"
 
 if ! command -v az >/dev/null 2>&1; then
@@ -24,6 +28,11 @@ fi
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 SUBSCRIPTION_NAME=$(az account show --query name -o tsv)
 TENANT_ID=$(az account show --query tenantId -o tsv)
+
+if [[ -z "$SUBSCRIPTION_ID" ]]; then
+  echo "Não foi possível obter a subscription ativa."
+  exit 1
+fi
 
 echo "Subscription ativa: $SUBSCRIPTION_NAME"
 echo "Subscription ID: $SUBSCRIPTION_ID"

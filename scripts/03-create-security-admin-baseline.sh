@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# Evita que o Git Bash no Windows converta resource IDs do Azure
+# Evita que o Git Bash no Windows converta resource IDs do Azure.
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL="*"
 
@@ -16,6 +16,8 @@ SECURITY_CONFIG_NAME="sac-baseline-lab"
 RULE_COLLECTION_NAME="arc-spokes-baseline"
 RULE_NAME="deny-rdp-inbound-to-spokes"
 
+API_VERSION="2024-10-01"
+
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
 if [[ -z "$SUBSCRIPTION_ID" ]]; then
@@ -25,47 +27,105 @@ fi
 
 NETWORK_GROUP_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/networkGroups/$NETWORK_GROUP_NAME"
 
-echo "==> Criando Security Admin Configuration"
+echo "==> Validando Azure Virtual Network Manager"
 
-az network manager security-admin-config create \
-  --configuration-name "$SECURITY_CONFIG_NAME" \
-  --network-manager-name "$NETWORK_MANAGER_NAME" \
+az network manager show \
   --resource-group "$RESOURCE_GROUP_NAME" \
-  --description "Security admin baseline for AVNM lab" \
-  --apply-on None \
+  --name "$NETWORK_MANAGER_NAME" \
   --output table
 
 echo
-echo "==> Criando Rule Collection aplicada ao Network Group"
+echo "==> Criando Security Admin Configuration via ARM REST"
 
-az network manager security-admin-config rule-collection create \
-  --configuration-name "$SECURITY_CONFIG_NAME" \
-  --network-manager-name "$NETWORK_MANAGER_NAME" \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --rule-collection-name "$RULE_COLLECTION_NAME" \
-  --description "Baseline rules for lab spokes" \
-  --applies-to-groups network-group-id="$NETWORK_GROUP_ID" \
+SECURITY_CONFIG_URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/securityAdminConfigurations/$SECURITY_CONFIG_NAME?api-version=$API_VERSION"
+
+SECURITY_CONFIG_BODY=$(cat <<JSON
+{
+  "properties": {
+    "description": "Security admin baseline for AVNM lab",
+    "applyOnNetworkIntentPolicyBasedServices": [
+      "None"
+    ]
+  }
+}
+JSON
+)
+
+az rest \
+  --method put \
+  --uri "$SECURITY_CONFIG_URI" \
+  --headers "Content-Type=application/json" \
+  --body "$SECURITY_CONFIG_BODY" \
   --output table
 
 echo
-echo "==> Criando Security Admin Rule para bloquear RDP inbound"
+echo "==> Criando Rule Collection via ARM REST"
 
-az network manager security-admin-config rule-collection rule create \
-  --configuration-name "$SECURITY_CONFIG_NAME" \
-  --network-manager-name "$NETWORK_MANAGER_NAME" \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --rule-collection-name "$RULE_COLLECTION_NAME" \
-  --rule-name "$RULE_NAME" \
-  --kind "Custom" \
-  --protocol "Tcp" \
-  --access "Deny" \
-  --priority 100 \
-  --direction "Inbound" \
-  --sources address-prefix="*" address-prefix-type="IPPrefix" \
-  --destinations address-prefix="*" address-prefix-type="IPPrefix" \
-  --source-port-ranges 0-65535 \
-  --dest-port-ranges 3389 \
-  --description "Deny inbound RDP to lab spokes" \
+RULE_COLLECTION_URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/securityAdminConfigurations/$SECURITY_CONFIG_NAME/ruleCollections/$RULE_COLLECTION_NAME?api-version=$API_VERSION"
+
+RULE_COLLECTION_BODY=$(cat <<JSON
+{
+  "properties": {
+    "description": "Baseline rules for lab spokes",
+    "appliesToGroups": [
+      {
+        "networkGroupId": "$NETWORK_GROUP_ID"
+      }
+    ]
+  }
+}
+JSON
+)
+
+az rest \
+  --method put \
+  --uri "$RULE_COLLECTION_URI" \
+  --headers "Content-Type=application/json" \
+  --body "$RULE_COLLECTION_BODY" \
+  --output table
+
+echo
+echo "==> Criando Security Admin Rule para bloquear RDP inbound via ARM REST"
+
+RULE_URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/securityAdminConfigurations/$SECURITY_CONFIG_NAME/ruleCollections/$RULE_COLLECTION_NAME/rules/$RULE_NAME?api-version=$API_VERSION"
+
+RULE_BODY=$(cat <<JSON
+{
+  "kind": "Custom",
+  "properties": {
+    "description": "Deny inbound RDP to lab spokes",
+    "protocol": "Tcp",
+    "sources": [
+      {
+        "addressPrefix": "*",
+        "addressPrefixType": "IPPrefix"
+      }
+    ],
+    "destinations": [
+      {
+        "addressPrefix": "*",
+        "addressPrefixType": "IPPrefix"
+      }
+    ],
+    "sourcePortRanges": [
+      "0-65535"
+    ],
+    "destinationPortRanges": [
+      "3389"
+    ],
+    "access": "Deny",
+    "priority": 100,
+    "direction": "Inbound"
+  }
+}
+JSON
+)
+
+az rest \
+  --method put \
+  --uri "$RULE_URI" \
+  --headers "Content-Type=application/json" \
+  --body "$RULE_BODY" \
   --output table
 
 SECURITY_CONFIG_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/securityAdminConfigurations/$SECURITY_CONFIG_NAME"

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# Evita que o Git Bash no Windows converta resource IDs do Azure
+# Evita que o Git Bash no Windows converta resource IDs do Azure.
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL="*"
 
@@ -21,6 +21,7 @@ if [[ -z "$SUBSCRIPTION_ID" ]]; then
 fi
 
 NETWORK_GROUP_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/networkGroups/$NETWORK_GROUP_NAME"
+POLICY_DEFINITION_ID="/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Authorization/policyDefinitions/$POLICY_DEFINITION_NAME"
 
 echo "==> Validando existência do Network Group"
 
@@ -31,92 +32,80 @@ az network manager group show \
   --output table
 
 echo
-echo "==> Gerando policy rule com Network Group ID completo"
+echo "==> Criando ou atualizando policy definition via ARM REST"
 
-POLICY_RULE_FILE="/tmp/avnm-add-to-network-group-policy-rule.json"
+POLICY_DEFINITION_URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Authorization/policyDefinitions/$POLICY_DEFINITION_NAME?api-version=2021-06-01"
 
-cat > "$POLICY_RULE_FILE" <<POLICY_JSON
+POLICY_DEFINITION_BODY=$(cat <<JSON
 {
-  "if": {
-    "allOf": [
-      {
-        "field": "type",
-        "equals": "Microsoft.Network/virtualNetworks"
+  "properties": {
+    "displayName": "AVNM - Add lab spoke VNets to network group",
+    "description": "Adds lab spoke VNets to an Azure Virtual Network Manager network group based on tags.",
+    "policyType": "Custom",
+    "mode": "Microsoft.Network.Data",
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Network/virtualNetworks"
+          },
+          {
+            "field": "tags['environment']",
+            "equals": "lab"
+          },
+          {
+            "field": "tags['workload']",
+            "equals": "avnm-demo"
+          },
+          {
+            "field": "tags['role']",
+            "equals": "spoke"
+          }
+        ]
       },
-      {
-        "field": "tags['environment']",
-        "equals": "lab"
-      },
-      {
-        "field": "tags['workload']",
-        "equals": "avnm-demo"
-      },
-      {
-        "field": "tags['role']",
-        "equals": "spoke"
+      "then": {
+        "effect": "addToNetworkGroup",
+        "details": {
+          "networkGroupId": "$NETWORK_GROUP_ID"
+        }
       }
-    ]
-  },
-  "then": {
-    "effect": "addToNetworkGroup",
-    "details": {
-      "networkGroupId": "$NETWORK_GROUP_ID"
     }
   }
 }
-POLICY_JSON
+JSON
+)
+
+az rest \
+  --method put \
+  --uri "$POLICY_DEFINITION_URI" \
+  --headers "Content-Type=application/json" \
+  --body "$POLICY_DEFINITION_BODY" \
+  --output table
 
 echo
-echo "==> Criando ou atualizando policy definition"
+echo "==> Criando ou atualizando policy assignment via ARM REST"
 
-if az policy definition show \
-  --name "$POLICY_DEFINITION_NAME" \
-  --subscription "$SUBSCRIPTION_ID" >/dev/null 2>&1; then
+POLICY_ASSIGNMENT_URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Authorization/policyAssignments/$POLICY_ASSIGNMENT_NAME?api-version=2022-06-01"
 
-  echo "Policy definition já existe. Atualizando..."
+POLICY_ASSIGNMENT_BODY=$(cat <<JSON
+{
+  "properties": {
+    "displayName": "AVNM - Add lab spoke VNets to network group",
+    "description": "Assigns lab spoke VNets to AVNM network group based on tags.",
+    "policyDefinitionId": "$POLICY_DEFINITION_ID",
+    "enforcementMode": "Default"
+  }
+}
+JSON
+)
 
-  az policy definition update \
-    --name "$POLICY_DEFINITION_NAME" \
-    --display-name "AVNM - Add lab spoke VNets to network group" \
-    --description "Adds lab spoke VNets to an Azure Virtual Network Manager network group based on tags." \
-    --mode "Microsoft.Network.Data" \
-    --rules "@$POLICY_RULE_FILE" \
-    --subscription "$SUBSCRIPTION_ID" \
-    --output table
-else
-  echo "Criando nova policy definition..."
-
-  az policy definition create \
-    --name "$POLICY_DEFINITION_NAME" \
-    --display-name "AVNM - Add lab spoke VNets to network group" \
-    --description "Adds lab spoke VNets to an Azure Virtual Network Manager network group based on tags." \
-    --mode "Microsoft.Network.Data" \
-    --rules "@$POLICY_RULE_FILE" \
-    --subscription "$SUBSCRIPTION_ID" \
-    --output table
-fi
-
-POLICY_DEFINITION_ID="/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Authorization/policyDefinitions/$POLICY_DEFINITION_NAME"
-
-echo
-echo "==> Criando ou atualizando policy assignment"
-
-if az policy assignment show \
-  --name "$POLICY_ASSIGNMENT_NAME" \
-  --scope "/subscriptions/$SUBSCRIPTION_ID" >/dev/null 2>&1; then
-
-  echo "Policy assignment já existe. Mantendo assignment atual."
-else
-  echo "Criando nova policy assignment..."
-
-  az policy assignment create \
-    --name "$POLICY_ASSIGNMENT_NAME" \
-    --display-name "AVNM - Add lab spoke VNets to network group" \
-    --description "Assigns lab spoke VNets to AVNM network group based on tags." \
-    --scope "/subscriptions/$SUBSCRIPTION_ID" \
-    --policy "$POLICY_DEFINITION_ID" \
-    --output table
-fi
+az rest \
+  --method put \
+  --uri "$POLICY_ASSIGNMENT_URI" \
+  --headers "Content-Type=application/json" \
+  --body "$POLICY_ASSIGNMENT_BODY" \
+  --output table
 
 echo
 echo "Policy criada e atribuída."
