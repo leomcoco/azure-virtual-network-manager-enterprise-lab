@@ -1,0 +1,33 @@
+# Azure CLI local cache
+.azure/
+
+# Environment files
+.env
+*.env
+*.local
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Terraform - reservado para evolução futura
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

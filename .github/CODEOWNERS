@@ -1,0 +1,6 @@
+# Responsável padrão pelo repositório
+* @leomcoco
+
+# Arquivos de governança do repositório
+/.github/ @leomcoco
+/SECURITY.md @leomcoco
