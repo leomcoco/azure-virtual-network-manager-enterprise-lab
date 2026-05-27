@@ -6,17 +6,20 @@ Este repositório acompanha o artigo:
 
 **Azure Virtual Network Manager na prática: conectividade e segurança de redes em escala enterprise**
 
+Artigo publicado:  
+https://leonardococo.com.br/azure-virtual-network-manager-governanca-redes-enterprise/
+
 ## Objetivo
 
 Criar um laboratório controlado com Azure Virtual Network Manager para demonstrar:
 
-- criação de VNets hub e spoke;
+- criação de VNets no padrão hub-spoke;
 - criação de um Azure Virtual Network Manager;
 - organização de VNets em network group;
-- configuração de conectividade hub-spoke;
+- aplicação de connectivity configuration no padrão hub-spoke;
 - exemplo de associação dinâmica com Azure Policy;
-- exemplo de security admin rule de laboratório;
-- validação da configuração aplicada;
+- criação de uma Security Admin Rule de laboratório;
+- validação das configurações efetivas;
 - limpeza dos recursos criados.
 
 ## Arquitetura do laboratório
@@ -37,6 +40,14 @@ Hub:
 └── vnet-hub-shared-001
 ```
 
+## Abordagem técnica
+
+A criação dos recursos base é feita com Azure CLI.
+
+As configurações do Azure Virtual Network Manager, como connectivity configuration, Azure Policy e security admin configuration, são aplicadas com ARM REST API via `az rest`.
+
+Essa abordagem reduz problemas de parsing da extensão `virtual-network-manager` em ambientes locais com Git Bash no Windows e deixa o laboratório mais previsível para reprodução.
+
 ## Recursos criados
 
 - Resource Group
@@ -49,6 +60,20 @@ Hub:
 - Azure Policy customizada para associação dinâmica
 - Security Admin Configuration de laboratório
 - Security Admin Rule de laboratório
+
+## Versões utilizadas no laboratório
+
+Laboratório validado com:
+
+- Azure CLI: 2.67.0
+- Ambiente de execução: Git Bash no Windows / VS Code
+- Data de execução do laboratório: 27/05/2026
+
+Para validar a versão da extensão `virtual-network-manager`, execute:
+
+```bash
+az extension show --name virtual-network-manager --output table
+```
 
 ## Pré-requisitos
 
@@ -82,15 +107,43 @@ Esse comportamento causa erro em comandos do Azure CLI que esperam um resource I
 
 Recomendação para maior compatibilidade: execute no Azure Cloud Shell em modo Bash.
 
+Clone o repositório:
+
 ```bash
 git clone https://github.com/leomcoco/azure-virtual-network-manager-enterprise-lab.git
 cd azure-virtual-network-manager-enterprise-lab
 chmod +x scripts/*.sh
+```
 
+Execute um script por vez.
+
+### 1. Validar pré-requisitos
+
+```bash
 ./scripts/00-prereqs.sh
+```
+
+### 2. Criar o laboratório
+
+```bash
 ./scripts/01-deploy-avnm-lab.sh
+```
+
+### 3. Criar policy de associação dinâmica
+
+```bash
 ./scripts/02-create-policy-add-to-network-group.sh
+```
+
+### 4. Criar baseline de Security Admin Rule
+
+```bash
 ./scripts/03-create-security-admin-baseline.sh
+```
+
+### 5. Validar o laboratório
+
+```bash
 ./scripts/04-validate-avnm-lab.sh
 ```
 
@@ -99,6 +152,27 @@ chmod +x scripts/*.sh
 ```bash
 ./scripts/99-cleanup.sh
 ```
+
+O script solicita confirmação manual. Digite `DELETE` para iniciar a remoção.
+
+## Evidências esperadas
+
+Ao final da execução, o laboratório deve validar:
+
+- Resource Group criado;
+- VNets hub e spokes criadas;
+- Azure Virtual Network Manager criado;
+- Network Group com as VNets spoke associadas;
+- Connectivity Configuration no padrão hub-spoke;
+- Azure Policy customizada criada e atribuída;
+- Security Admin Configuration criada;
+- Security Admin Rule efetiva para bloqueio de RDP inbound nas spokes.
+
+Consulte também:
+
+- `docs/validation.md`
+- `docs/screenshots.md`
+- `evidence/expected-outputs.md`
 
 ## Segurança
 
@@ -117,7 +191,19 @@ Não publique no repositório:
 
 ## Observações
 
-Este laboratório foi criado para estudo e demonstração. Antes de adaptar para produção, revise escopo, permissões, naming convention, tagging, security admin rules, conectividade, processo de mudança e rollback.
+Este laboratório foi criado para estudo e demonstração.
+
+Antes de adaptar para produção, revise:
+
+- escopo do Azure Virtual Network Manager;
+- permissões;
+- naming convention;
+- tagging;
+- Azure Policy;
+- security admin rules;
+- conectividade;
+- processo de mudança;
+- rollback.
 
 ## Licença
 
