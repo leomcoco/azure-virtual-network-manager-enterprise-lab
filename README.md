@@ -58,6 +58,26 @@ Hub:
 - Permissão para criar Azure Policy definition e assignment
 - Permissão para criar recursos no escopo da subscription
 
+## Observação para Git Bash no Windows
+
+Este laboratório pode ser executado no Azure Cloud Shell em modo Bash, que é a opção recomendada.
+
+Também é possível executar no Git Bash no Windows. Nesse caso, os scripts definem as variáveis `MSYS_NO_PATHCONV=1` e `MSYS2_ARG_CONV_EXCL="*"` para evitar que resource IDs do Azure iniciados por `/subscriptions/...` sejam convertidos automaticamente para caminhos locais do Windows.
+
+Exemplo de resource ID esperado:
+
+```text
+/subscriptions/<subscription-id>
+```
+
+Exemplo do problema no Git Bash quando a conversão acontece:
+
+```text
+C:/Program Files/Git/subscriptions/<subscription-id>
+```
+
+Esse comportamento causa erro em comandos do Azure CLI que esperam um resource ID válido do Azure.
+
 ## Como executar
 
 Recomendação para maior compatibilidade: execute no Azure Cloud Shell em modo Bash.
