@@ -1,56 +1,14 @@
 # Guia de execução
 
-Este guia descreve como executar o laboratório no Azure Cloud Shell usando Bash.
+Este guia descreve como executar o laboratório do Azure Virtual Network Manager.
 
-## 1. Abrir Azure Cloud Shell
+A forma recomendada é usar o Azure Cloud Shell em modo Bash. Isso reduz problemas de autenticação local, múltiplos tenants, MFA e versões diferentes de ferramentas.
 
-Acesse o Azure Portal e abra o Cloud Shell em modo Bash.
+## 1. Abrir o Azure Cloud Shell
 
-## 2. Clonar o repositório
+No Azure Portal, abra o Cloud Shell e selecione **Bash**.
 
-```bash
-git clone https://github.com/leomcoco/azure-virtual-network-manager-enterprise-lab.git
-cd azure-virtual-network-manager-enterprise-lab
-```
-
-## 3. Permitir execução dos scripts
+Confirme a subscription ativa:
 
 ```bash
-chmod +x scripts/*.sh
-```
-
-## 4. Validar pré-requisitos
-
-```bash
-./scripts/00-prereqs.sh
-```
-
-## 5. Criar o laboratório
-
-```bash
-./scripts/01-deploy-avnm-lab.sh
-```
-
-## 6. Criar policy de associação dinâmica
-
-```bash
-./scripts/02-create-policy-add-to-network-group.sh
-```
-
-## 7. Criar security admin baseline
-
-```bash
-./scripts/03-create-security-admin-baseline.sh
-```
-
-## 8. Validar o laboratório
-
-```bash
-./scripts/04-validate-avnm-lab.sh
-```
-
-## 9. Remover os recursos
-
-```bash
-./scripts/99-cleanup.sh
-```
+az account show --output table
