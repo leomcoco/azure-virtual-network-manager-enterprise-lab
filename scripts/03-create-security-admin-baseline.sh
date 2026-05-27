@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Evita que o Git Bash no Windows converta resource IDs do Azure
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 LOCATION="eastus"
 RESOURCE_GROUP_NAME="rg-avnm-lab"
 
@@ -59,7 +63,7 @@ az network manager security-admin-config rule-collection rule create \
   --direction "Inbound" \
   --sources address-prefix="*" address-prefix-type="IPPrefix" \
   --destinations address-prefix="*" address-prefix-type="IPPrefix" \
-  --source-port-ranges "*" \
+  --source-port-ranges 0-65535 \
   --dest-port-ranges 3389 \
   --description "Deny inbound RDP to lab spokes" \
   --output table

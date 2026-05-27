@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Evita que o Git Bash no Windows converta resource IDs do Azure
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 RESOURCE_GROUP_NAME="rg-avnm-lab"
 NETWORK_MANAGER_NAME="avnm-lab-001"
 NETWORK_GROUP_NAME="ng-spokes-lab"
@@ -76,7 +80,7 @@ if az policy definition show \
     --display-name "AVNM - Add lab spoke VNets to network group" \
     --description "Adds lab spoke VNets to an Azure Virtual Network Manager network group based on tags." \
     --mode "Microsoft.Network.Data" \
-    --rules "$POLICY_RULE_FILE" \
+    --rules "@$POLICY_RULE_FILE" \
     --subscription "$SUBSCRIPTION_ID" \
     --output table
 else
@@ -87,7 +91,7 @@ else
     --display-name "AVNM - Add lab spoke VNets to network group" \
     --description "Adds lab spoke VNets to an Azure Virtual Network Manager network group based on tags." \
     --mode "Microsoft.Network.Data" \
-    --rules "$POLICY_RULE_FILE" \
+    --rules "@$POLICY_RULE_FILE" \
     --subscription "$SUBSCRIPTION_ID" \
     --output table
 fi
@@ -95,7 +99,7 @@ fi
 POLICY_DEFINITION_ID="/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Authorization/policyDefinitions/$POLICY_DEFINITION_NAME"
 
 echo
-echo "==> Criando policy assignment"
+echo "==> Criando ou atualizando policy assignment"
 
 if az policy assignment show \
   --name "$POLICY_ASSIGNMENT_NAME" \
@@ -103,6 +107,8 @@ if az policy assignment show \
 
   echo "Policy assignment já existe. Mantendo assignment atual."
 else
+  echo "Criando nova policy assignment..."
+
   az policy assignment create \
     --name "$POLICY_ASSIGNMENT_NAME" \
     --display-name "AVNM - Add lab spoke VNets to network group" \

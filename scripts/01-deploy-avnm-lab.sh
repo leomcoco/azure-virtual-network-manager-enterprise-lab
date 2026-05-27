@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Evita que o Git Bash no Windows converta resource IDs do Azure
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 LOCATION="eastus"
 RESOURCE_GROUP_NAME="rg-avnm-lab"
 
@@ -106,7 +110,7 @@ az network manager create \
   --name "$NETWORK_MANAGER_NAME" \
   --resource-group "$RESOURCE_GROUP_NAME" \
   --location "$LOCATION" \
-  --scope-accesses "Connectivity" "SecurityAdmin" \
+  --scope-accesses Connectivity SecurityAdmin \
   --network-manager-scopes subscriptions="/subscriptions/$SUBSCRIPTION_ID" \
   --description "AVNM lab for enterprise network governance" \
   --tags \
@@ -158,16 +162,19 @@ az network manager group static-member create \
 echo
 echo "==> Criando Connectivity Configuration Hub-Spoke"
 
-APPLIES_TO_GROUPS="[{\"networkGroupId\":\"$NETWORK_GROUP_ID\",\"groupConnectivity\":\"None\",\"isGlobal\":false,\"useHubGateway\":false}]"
-HUBS="[{\"resourceId\":\"$VNET_HUB_ID\",\"resourceType\":\"Microsoft.Network/virtualNetworks\"}]"
-
 az network manager connect-config create \
   --configuration-name "$CONNECTIVITY_CONFIG_NAME" \
   --description "Hub-spoke connectivity configuration for AVNM lab" \
-  --applies-to-groups "$APPLIES_TO_GROUPS" \
+  --applies-to-groups \
+    network-group-id="$NETWORK_GROUP_ID" \
+    group-connectivity="None" \
+    use-hub-gateway="False" \
+    is-global="False" \
   --connectivity-topology "HubAndSpoke" \
   --delete-existing-peering "False" \
-  --hubs "$HUBS" \
+  --hub \
+    resource-id="$VNET_HUB_ID" \
+    resource-type="Microsoft.Network/virtualNetworks" \
   --is-global "False" \
   --network-manager-name "$NETWORK_MANAGER_NAME" \
   --resource-group "$RESOURCE_GROUP_NAME" \
