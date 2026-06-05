@@ -24,6 +24,16 @@ Resultado esperado no `07-validate-effective-configs.sh`:
 }
 ```
 
+## Peering Hub <-> Spoke dinâmica
+
+O script `08-redeploy-connectivity-and-wait.sh` deve retornar:
+
+```text
+PASS: peering AVNM Hub <-> Spoke dinâmica encontrado em estado Connected.
+```
+
+Se esse resultado não aparecer, não prossiga para as evidências de tráfego.
+
 ## Serviços na VM dinâmica
 
 A VM `vm-spoke-dynamic-test-001` deve escutar nas portas:

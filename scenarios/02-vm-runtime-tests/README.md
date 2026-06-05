@@ -10,6 +10,8 @@ Validar o comportamento real do AVNM usando VNets e VMs:
 
 - criar uma nova spoke com tags de governança;
 - criar uma VNet fora do padrão;
+- validar a implantação da connectivity configuration;
+- validar a materialização do peering Hub <-> Spoke dinâmica;
 - criar VMs Linux sem IP público;
 - iniciar serviços TCP de teste nas portas 8080 e 3389;
 - validar conectividade hub-spoke;
@@ -45,6 +47,7 @@ Execute um script por vez:
 ```bash
 ./scripts/00-validate-base-lab.sh
 ./scripts/01-create-dynamic-vnets.sh
+./scripts/08-redeploy-connectivity-and-wait.sh
 ./scripts/02-create-test-vms.sh
 ./scripts/03-start-test-services.sh
 ./scripts/04-test-hub-to-spoke.sh
@@ -55,7 +58,9 @@ Execute um script por vez:
 
 ## Validações importantes
 
-O script `04-test-hub-to-spoke.sh` valida se existe peering AVNM em estado `Connected` entre o hub e a spoke dinâmica antes de testar a porta 8080.
+O script `08-redeploy-connectivity-and-wait.sh` reimplanta a connectivity configuration do AVNM e aguarda a materialização do peering entre o hub e a spoke dinâmica.
+
+O script `04-test-hub-to-spoke.sh` também valida se existe peering AVNM em estado `Connected` antes de testar a porta 8080.
 
 O script `06-test-security-admin-deny.sh` valida a conectividade base na porta 8080 antes de testar o bloqueio da porta 3389.
 
@@ -67,16 +72,17 @@ Capture prints dos seguintes pontos:
 
 1. Nova VNet `vnet-spoke-dynamic-001` com tags corretas.
 2. VNet `vnet-outofpolicy-001` sem as tags de entrada no modelo.
-3. VMs sem IP público.
-4. Run Command iniciando serviços nas portas 8080 e 3389.
-5. Peering AVNM Hub <-> Spoke dinâmica em estado `Connected`.
-6. Teste Hub -> Spoke na porta 8080 com resultado `PASS`.
-7. Teste Spoke -> Spoke na porta 8080 com resultado `PASS: not reachable`.
-8. NSG permitindo porta 3389.
-9. Teste Hub -> Spoke na porta 3389 com resultado `PASS: blocked or timed out`.
-10. Effective connectivity configuration.
-11. Effective security admin rule.
-12. Estrutura deste cenário no GitHub.
+3. Connectivity configuration mostrando a VNet dinâmica conectada.
+4. Peering AVNM Hub <-> Spoke dinâmica em estado `Connected`.
+5. VMs sem IP público.
+6. Run Command iniciando serviços nas portas 8080 e 3389.
+7. Teste Hub -> Spoke na porta 8080 com resultado `PASS`.
+8. Teste Spoke -> Spoke na porta 8080 com resultado `PASS: not reachable`.
+9. NSG permitindo porta 3389.
+10. Teste Hub -> Spoke na porta 3389 com resultado `PASS: blocked or timed out`.
+11. Effective connectivity configuration.
+12. Effective security admin rule.
+13. Estrutura deste cenário no GitHub.
 
 Não use como evidência positiva prints com `FAIL`, `timed out` em testes esperados como sucesso ou erro de placeholder.
 
