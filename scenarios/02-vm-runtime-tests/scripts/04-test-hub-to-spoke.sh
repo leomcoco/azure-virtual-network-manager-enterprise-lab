@@ -12,6 +12,10 @@ if [[ -z "$TARGET_IP" ]]; then
   exit 1
 fi
 
+echo "==> Validando peering AVNM antes do teste de tráfego"
+require_hub_to_dynamic_peering
+
+echo
 echo "==> Teste esperado: SUCESSO"
 echo "Origem: $VM_HUB_NAME"
 echo "Destino: $VM_SPOKE_DYNAMIC_NAME ($TARGET_IP:8080)"
@@ -22,8 +26,7 @@ import socket
 host = "$TARGET_IP"
 port = 8080
 try:
-    s = socket.create_connection((host, port), timeout=5)
-    s.close()
+    socket.create_connection((host, port), timeout=5).close()
     print(f"PASS: {host}:{port} reachable from hub VM")
 except Exception as e:
     print(f"FAIL: {host}:{port} not reachable from hub VM: {e}")
@@ -32,12 +35,16 @@ PYTHON
 PY
 )
 
-az vm run-command invoke \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --name "$VM_HUB_NAME" \
-  --command-id RunShellScript \
-  --scripts "$TEST_SCRIPT" \
-  --output table
+OUTPUT=$(run_command_message "$VM_HUB_NAME" "$TEST_SCRIPT")
+echo "$OUTPUT"
+
+if ! grep -q "PASS: $TARGET_IP:8080 reachable from hub VM" <<< "$OUTPUT"; then
+  echo
+  echo "FAIL: o teste Hub -> Spoke na porta 8080 não retornou PASS."
+  echo "Não use esta execução como evidência positiva no artigo."
+  exit 1
+fi
 
 echo
-echo "Teste Hub -> Spoke na porta 8080 concluído. Próximo passo: ./scripts/05-test-spoke-to-spoke.sh"
+echo "Teste Hub -> Spoke na porta 8080 validado com sucesso."
+echo "Próximo passo: ./scripts/05-test-spoke-to-spoke.sh"

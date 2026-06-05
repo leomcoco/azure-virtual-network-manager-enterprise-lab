@@ -44,35 +44,22 @@ Execute um script por vez:
 
 ```bash
 ./scripts/00-validate-base-lab.sh
-```
-
-```bash
 ./scripts/01-create-dynamic-vnets.sh
-```
-
-```bash
 ./scripts/02-create-test-vms.sh
-```
-
-```bash
 ./scripts/03-start-test-services.sh
-```
-
-```bash
 ./scripts/04-test-hub-to-spoke.sh
-```
-
-```bash
 ./scripts/05-test-spoke-to-spoke.sh
-```
-
-```bash
 ./scripts/06-test-security-admin-deny.sh
-```
-
-```bash
 ./scripts/07-validate-effective-configs.sh
 ```
+
+## Validações importantes
+
+O script `04-test-hub-to-spoke.sh` valida se existe peering AVNM em estado `Connected` entre o hub e a spoke dinâmica antes de testar a porta 8080.
+
+O script `06-test-security-admin-deny.sh` valida a conectividade base na porta 8080 antes de testar o bloqueio da porta 3389.
+
+Essa validação é importante porque um timeout na porta 3389 só é uma boa evidência de bloqueio da Security Admin Rule se houver conectividade base funcionando entre hub e spoke.
 
 ## Como coletar evidências
 
@@ -82,13 +69,16 @@ Capture prints dos seguintes pontos:
 2. VNet `vnet-outofpolicy-001` sem as tags de entrada no modelo.
 3. VMs sem IP público.
 4. Run Command iniciando serviços nas portas 8080 e 3389.
-5. Teste Hub -> Spoke na porta 8080 com resultado esperado de sucesso.
-6. Teste Spoke -> Spoke na porta 8080 com resultado esperado de falha/timeout.
-7. NSG permitindo porta 3389.
-8. Teste Hub -> Spoke na porta 3389 com resultado esperado de falha/timeout.
-9. Effective connectivity configuration.
-10. Effective security admin rule.
-11. Estrutura deste cenário no GitHub.
+5. Peering AVNM Hub <-> Spoke dinâmica em estado `Connected`.
+6. Teste Hub -> Spoke na porta 8080 com resultado `PASS`.
+7. Teste Spoke -> Spoke na porta 8080 com resultado `PASS: not reachable`.
+8. NSG permitindo porta 3389.
+9. Teste Hub -> Spoke na porta 3389 com resultado `PASS: blocked or timed out`.
+10. Effective connectivity configuration.
+11. Effective security admin rule.
+12. Estrutura deste cenário no GitHub.
+
+Não use como evidência positiva prints com `FAIL`, `timed out` em testes esperados como sucesso ou erro de placeholder.
 
 ## Cleanup
 

@@ -23,8 +23,7 @@ import socket
 host = "$TARGET_IP"
 port = 8080
 try:
-    s = socket.create_connection((host, port), timeout=5)
-    s.close()
+    socket.create_connection((host, port), timeout=5).close()
     print(f"UNEXPECTED: {host}:{port} reachable from spoke VM")
     raise SystemExit(1)
 except Exception as e:
@@ -33,12 +32,15 @@ PYTHON
 PY
 )
 
-az vm run-command invoke \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --name "$VM_SPOKE_APP_NAME" \
-  --command-id RunShellScript \
-  --scripts "$TEST_SCRIPT" \
-  --output table
+OUTPUT=$(run_command_message "$VM_SPOKE_APP_NAME" "$TEST_SCRIPT")
+echo "$OUTPUT"
+
+if ! grep -q "PASS: $TARGET_IP:8080 not reachable from spoke VM" <<< "$OUTPUT"; then
+  echo
+  echo "FAIL: o teste Spoke -> Spoke não retornou o bloqueio esperado."
+  exit 1
+fi
 
 echo
-echo "Teste Spoke -> Spoke concluído. Próximo passo: ./scripts/06-test-security-admin-deny.sh"
+echo "Teste Spoke -> Spoke validado com sucesso."
+echo "Próximo passo: ./scripts/06-test-security-admin-deny.sh"

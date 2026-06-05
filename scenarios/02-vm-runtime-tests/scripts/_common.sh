@@ -53,11 +53,6 @@ require_az_login() {
   fi
 }
 
-resource_exists() {
-  local id="$1"
-  az resource show --ids "$id" >/dev/null 2>&1
-}
-
 require_base_lab() {
   require_az_login
 
@@ -92,6 +87,61 @@ get_vm_private_ip() {
     --name "$vm_name" \
     --query "[0].virtualMachine.network.privateIpAddresses[0]" \
     -o tsv
+}
+
+get_vnet_id() {
+  local vnet_name="$1"
+  az network vnet show \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$vnet_name" \
+    --query id \
+    -o tsv
+}
+
+run_command_message() {
+  local vm_name="$1"
+  local script_content="$2"
+
+  az vm run-command invoke \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$vm_name" \
+    --command-id RunShellScript \
+    --scripts "$script_content" \
+    --query "value[0].message" \
+    -o tsv
+}
+
+require_hub_to_dynamic_peering() {
+  local hub_vnet_id dynamic_vnet_id hub_to_dynamic_count dynamic_to_hub_count
+
+  hub_vnet_id=$(get_vnet_id "$VNET_HUB_NAME")
+  dynamic_vnet_id=$(get_vnet_id "$VNET_DYNAMIC_NAME")
+
+  hub_to_dynamic_count=$(az network vnet peering list \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --vnet-name "$VNET_HUB_NAME" \
+    --query "[?remoteVirtualNetwork.id=='$dynamic_vnet_id' && peeringState=='Connected'] | length(@)" \
+    -o tsv)
+
+  dynamic_to_hub_count=$(az network vnet peering list \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --vnet-name "$VNET_DYNAMIC_NAME" \
+    --query "[?remoteVirtualNetwork.id=='$hub_vnet_id' && peeringState=='Connected'] | length(@)" \
+    -o tsv)
+
+  if [[ "$hub_to_dynamic_count" != "1" || "$dynamic_to_hub_count" != "1" ]]; then
+    echo "FAIL: peering AVNM Hub <-> Spoke dinâmica não encontrado em estado Connected."
+    echo
+    echo "Este teste exige conectividade hub-spoke ativa."
+    echo "Execute novamente o post-commit de Connectivity, aguarde alguns minutos e valide os peerings."
+    echo
+    echo "Validação sugerida:"
+    echo "az network vnet peering list --resource-group $RESOURCE_GROUP_NAME --vnet-name $VNET_HUB_NAME --output table"
+    echo "az network vnet peering list --resource-group $RESOURCE_GROUP_NAME --vnet-name $VNET_DYNAMIC_NAME --output table"
+    exit 1
+  fi
+
+  echo "PASS: peering AVNM Hub <-> Spoke dinâmica encontrado em estado Connected."
 }
 
 create_nsg_if_missing() {
