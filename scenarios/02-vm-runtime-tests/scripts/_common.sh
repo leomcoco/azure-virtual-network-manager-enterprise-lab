@@ -46,9 +46,35 @@ get_subscription_id() {
   az account show --query id -o tsv
 }
 
+get_tenant_id() {
+  az account show --query tenantId -o tsv
+}
+
 require_az_login() {
   if ! az account show >/dev/null 2>&1; then
-    echo "Nenhuma sessão Azure ativa foi encontrada. Execute az login ou use o Azure Cloud Shell."
+    echo "Nenhuma sessão Azure ativa foi encontrada."
+    echo "Execute: az login --tenant <tenant-id> --scope https://management.core.windows.net//.default"
+    exit 1
+  fi
+
+  local subscription_id
+  local tenant_id
+
+  subscription_id="$(get_subscription_id)"
+  tenant_id="$(get_tenant_id)"
+
+  if ! az rest \
+    --method get \
+    --url "https://management.azure.com/subscriptions/${subscription_id}?api-version=2022-12-01" \
+    --only-show-errors >/dev/null 2>&1; then
+
+    echo "A sessão Azure existe, mas o token para Azure Resource Manager não está válido para executar este laboratório."
+    echo
+    echo "Execute novamente o login abaixo e depois rode o script de novo:"
+    echo "az login --tenant ${tenant_id} --scope https://management.core.windows.net//.default"
+    echo "az account set --subscription ${subscription_id}"
+    echo
+    echo "Importante: não continue os próximos scripts até esta validação passar."
     exit 1
   fi
 }
@@ -133,7 +159,7 @@ require_hub_to_dynamic_peering() {
     echo "FAIL: peering AVNM Hub <-> Spoke dinâmica não encontrado em estado Connected."
     echo
     echo "Este teste exige conectividade hub-spoke ativa."
-    echo "Execute novamente o post-commit de Connectivity, aguarde alguns minutos e valide os peerings."
+    echo "Execute: ./scripts/08-redeploy-connectivity-and-wait.sh"
     echo
     echo "Validação sugerida:"
     echo "az network vnet peering list --resource-group $RESOURCE_GROUP_NAME --vnet-name $VNET_HUB_NAME --output table"

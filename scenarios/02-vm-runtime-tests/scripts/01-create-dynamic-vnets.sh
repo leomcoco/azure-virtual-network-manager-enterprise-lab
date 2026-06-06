@@ -6,10 +6,6 @@ source "$SCRIPT_DIR/_common.sh"
 
 require_base_lab
 
-SUBSCRIPTION_ID=$(get_subscription_id)
-CONNECTIVITY_CONFIG_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/connectivityConfigurations/$CONNECTIVITY_CONFIG_NAME"
-SECURITY_CONFIG_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/networkManagers/$NETWORK_MANAGER_NAME/securityAdminConfigurations/$SECURITY_CONFIG_NAME"
-
 echo
 echo "==> Criando VNet dinâmica com tags esperadas pela política"
 
@@ -55,28 +51,9 @@ az policy state trigger-scan \
   --only-show-errors || true
 
 echo
-echo "==> Aguardando alguns minutos para propagação de associação dinâmica"
+echo "==> Aguardando propagação inicial de associação dinâmica"
 sleep 90
 
 echo
-echo "==> Publicando novamente as configurações existentes do AVNM para a região $LOCATION"
-echo "Esta etapa não altera o desenho do laboratório anterior; apenas reaplica as configurações existentes para incluir novos membros dinâmicos."
-
-az network manager post-commit \
-  --network-manager-name "$NETWORK_MANAGER_NAME" \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --commit-type "Connectivity" \
-  --configuration-ids "$CONNECTIVITY_CONFIG_ID" \
-  --target-locations "$LOCATION" \
-  --output table
-
-az network manager post-commit \
-  --network-manager-name "$NETWORK_MANAGER_NAME" \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --commit-type "SecurityAdmin" \
-  --configuration-ids "$SECURITY_CONFIG_ID" \
-  --target-locations "$LOCATION" \
-  --output table
-
-echo
-echo "VNets de teste criadas. Próximo passo: ./scripts/02-create-test-vms.sh"
+echo "VNets de teste criadas."
+echo "Próximo passo obrigatório: ./scripts/08-redeploy-connectivity-and-wait.sh"
