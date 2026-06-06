@@ -47,8 +47,6 @@ echo "Motivo: eliminar risco de campos booleanos gravados como string ou divergÃ
 echo "URI: $CONNECTIVITY_CONFIG_URI"
 echo
 
-echo "==> Validando JSON gerado localmente"
-python3 -m json.tool "$TMP_BODY" >/dev/null
 cat "$TMP_BODY"
 echo
 
