@@ -33,6 +33,18 @@ Execute os scripts principais na raiz do repositório, se ainda não tiver feito
 ./scripts/04-validate-avnm-lab.sh
 ```
 
+## Autenticação recomendada
+
+Se estiver usando Git Bash no Windows, faça login explicitamente no tenant da subscription do laboratório:
+
+```bash
+az login --tenant b8b91fa5-7eac-448d-b404-2f0a0d94bcd0 --scope https://management.core.windows.net//.default
+
+az account set --subscription de810171-07ff-4939-a404-a9a1e5e67487
+```
+
+Isso evita falhas de token do Azure Resource Manager durante comandos como `post-commit`, `az vm run-command invoke` e validações do AVNM.
+
 ## Como executar
 
 A partir desta pasta:
@@ -42,7 +54,7 @@ cd scenarios/02-vm-runtime-tests
 chmod +x scripts/*.sh
 ```
 
-Execute um script por vez:
+Execute **um script por vez**. Não cole todos de uma vez no terminal. Se um script falhar, pare, corrija a causa e só depois continue.
 
 ```bash
 ./scripts/00-validate-base-lab.sh
