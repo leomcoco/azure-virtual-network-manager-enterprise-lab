@@ -6,53 +6,62 @@ source "$SCRIPT_DIR/_common.sh"
 
 require_az_login
 
+API_VERSION="${API_VERSION:-2024-10-01}"
 SUBSCRIPTION_ID=$(get_subscription_id)
 
 NETWORK_GROUP_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}/providers/Microsoft.Network/networkManagers/${NETWORK_MANAGER_NAME}/networkGroups/${NETWORK_GROUP_NAME}"
 VNET_HUB_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}/providers/Microsoft.Network/virtualNetworks/${VNET_HUB_NAME}"
 CONNECTIVITY_CONFIG_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}/providers/Microsoft.Network/networkManagers/${NETWORK_MANAGER_NAME}/connectivityConfigurations/${CONNECTIVITY_CONFIG_NAME}"
+CONNECTIVITY_CONFIG_URI="https://management.azure.com${CONNECTIVITY_CONFIG_ID}?api-version=${API_VERSION}"
 
-TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' EXIT
+TMP_BODY="$(mktemp)"
+trap 'rm -f "$TMP_BODY"' EXIT
 
-APPLIES_FILE="$TMP_DIR/applies-to-groups.json"
-HUBS_FILE="$TMP_DIR/hubs.json"
-
-cat > "$APPLIES_FILE" <<JSON
-[
-  {
-    "networkGroupId": "$NETWORK_GROUP_ID",
-    "groupConnectivity": "None",
-    "isGlobal": "False",
-    "useHubGateway": "False"
+cat > "$TMP_BODY" <<JSON
+{
+  "properties": {
+    "description": "Hub-spoke connectivity configuration for AVNM lab",
+    "connectivityTopology": "HubAndSpoke",
+    "deleteExistingPeering": false,
+    "isGlobal": false,
+    "appliesToGroups": [
+      {
+        "networkGroupId": "$NETWORK_GROUP_ID",
+        "groupConnectivity": "None",
+        "isGlobal": false,
+        "useHubGateway": false
+      }
+    ],
+    "hubs": [
+      {
+        "resourceId": "$VNET_HUB_ID",
+        "resourceType": "Microsoft.Network/virtualNetworks"
+      }
+    ]
   }
-]
+}
 JSON
 
-cat > "$HUBS_FILE" <<JSON
-[
-  {
-    "resourceId": "$VNET_HUB_ID",
-    "resourceType": "Microsoft.Network/virtualNetworks"
-  }
-]
-JSON
-
-echo "==> Atualizando Connectivity Configuration com az network manager connect-config update"
-echo "Motivo: evitar divergência de schema ao criar/atualizar a configuração via ARM REST diretamente."
+echo "==> Regravando Connectivity Configuration com JSON tipado via ARM REST"
+echo "Motivo: eliminar risco de campos booleanos gravados como string ou divergência de schema."
+echo "URI: $CONNECTIVITY_CONFIG_URI"
 echo
 
-az network manager connect-config update \
+az rest \
+  --method put \
+  --uri "$CONNECTIVITY_CONFIG_URI" \
+  --headers "Content-Type=application/json" \
+  --body @"$TMP_BODY" \
+  --output jsonc
+
+echo
+echo "==> Validando configuração após regravação"
+
+az network manager connect-config show \
   --resource-group "$RESOURCE_GROUP_NAME" \
   --network-manager-name "$NETWORK_MANAGER_NAME" \
   --configuration-name "$CONNECTIVITY_CONFIG_NAME" \
-  --description "Hub-spoke connectivity configuration for AVNM lab" \
-  --connectivity-topology HubAndSpoke \
-  --delete-existing-peering False \
-  --is-global False \
-  --applies-to-groups @"$APPLIES_FILE" \
-  --hubs @"$HUBS_FILE" \
-  --output table
+  --output jsonc
 
 echo
 echo "==> Reimplantando Connectivity Configuration na região $LOCATION"
@@ -64,15 +73,6 @@ az network manager post-commit \
   --configuration-ids "$CONNECTIVITY_CONFIG_ID" \
   --target-locations "$LOCATION" \
   --output table
-
-echo
-echo "==> Status do deployment de conectividade"
-az network manager list-deploy-status \
-  --network-manager-name "$NETWORK_MANAGER_NAME" \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --deployment-types Connectivity \
-  --regions "$LOCATION" \
-  --output table || true
 
 echo
 echo "==> Aguardando peering Hub <-> Spoke dinâmica"
@@ -118,7 +118,7 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
       --output table
 
     echo
-    echo "Próximo passo: ./scripts/02-create-test-vms.sh"
+    echo "Próximo passo: ./scripts/04-test-hub-to-spoke.sh"
     exit 0
   fi
 
@@ -129,10 +129,9 @@ done
 echo
 echo "FAIL: o AVNM ainda não materializou o peering Hub <-> Spoke dinâmica."
 echo
-echo "Próximas evidências obrigatórias:"
-echo "1) AVNM > Deployments > Connectivity > View deployment details and resource status"
-echo "2) Activity Log do recurso avnm-lab-001 filtrando operações Commit e Write VirtualNetworkPeering"
-echo "3) Saída do comando abaixo:"
+echo "O deployment geral pode aparecer como Succeeded mesmo com falha por VNet."
+echo "No Portal, valide:"
+echo "AVNM > Deployments > Connectivity > View deployment details and resource status"
 echo
-echo "az network manager list-deploy-status --network-manager-name $NETWORK_MANAGER_NAME --resource-group $RESOURCE_GROUP_NAME --deployment-types Connectivity --regions $LOCATION --output jsonc"
+echo "Se o Resource status continuar Failed para as VNets, colete o erro detalhado via Activity Log ou suporte Microsoft."
 exit 1
