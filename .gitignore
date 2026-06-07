@@ -31,3 +31,6 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# Local troubleshooting evidence
+scenarios/02-vm-runtime-tests/evidence/troubleshooting/
